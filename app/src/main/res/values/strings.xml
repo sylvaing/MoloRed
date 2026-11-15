@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">Ma TV</string>
+    <string name="loading">Chargement des chaînes…</string>
+    <string name="login_needed">Connexion à votre compte RED / SFR…</string>
+    <string name="load_error">Impossible de charger les chaînes : %1$s\nAppuyez sur ☰ pour réessayer.</string>
+    <string name="retrying">Erreur de lecture (%1$s), nouvel essai…</string>
+    <string name="play_error">Lecture impossible (%1$s)</string>
+    <string name="next">Ensuite %1$s  %2$s</string>
+    <string name="reload">Recharger les chaînes</string>
+    <string name="logout">Se déconnecter</string>
+    <string name="login_subtitle">Connectez-vous avec votre compte RED by SFR</string>
+    <string name="login_user">Email, numéro de mobile ou NeufID</string>
+    <string name="login_password">Mot de passe</string>
+    <string name="login_button">Se connecter</string>
+    <string name="login_sfr_page">Utiliser la page de connexion SFR</string>
+    <string name="login_progress">Connexion en cours…</string>
+    <string name="login_failed">Connexion impossible (réseau ?). Réessayez.</string>
+    <string name="login_empty">Saisissez l’identifiant et le mot de passe.</string>
+    <string name="ts_live">DIRECT</string>
+    <string name="ts_delay">−%1$s</string>
+    <string name="ts_hint_live">◀ reculer   ·   OK pause</string>
+    <string name="ts_hint_delayed">◀ ▶ se déplacer   ·   OK pause / lecture   ·   ▲ direct</string>
+    <string name="ts_hint_noff">◀ reculer (avance interdite sur cette chaîne)   ·   ▲ direct</string>
+    <string name="ts_not_allowed">Pause et retour en arrière non disponibles sur cette chaîne</string>
+    <string name="menu_restart">Reprendre au début du programme</string>
+    <string name="menu_live">Revenir au direct</string>
+    <string name="menu_grid">Liste des chaînes</string>
+    <string name="ts_live_button">⏭  Revenir au direct</string>
+</resources>

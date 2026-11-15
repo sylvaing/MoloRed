@@ -1,0 +1,11 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp">
+    <item><shape><solid android:color="#E2001A"/></shape></item>
+    <item android:gravity="center" android:width="200dp" android:height="110dp">
+        <shape><solid android:color="#00000000"/><stroke android:width="8dp" android:color="#FFFFFF"/>
+            <corners android:radius="14dp"/></shape>
+    </item>
+    <item android:gravity="bottom|center_horizontal" android:width="90dp" android:height="10dp" android:bottom="22dp">
+        <shape><solid android:color="#FFFFFF"/><corners android:radius="5dp"/></shape>
+    </item>
+</layer-list>

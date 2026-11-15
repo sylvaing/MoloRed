@@ -1,0 +1,9 @@
+<resources>
+    <color name="bg">#0E0F13</color>
+    <color name="card">#1B1D24</color>
+    <color name="card_focus">#2A2D38</color>
+    <color name="accent">#E2001A</color>
+    <color name="text">#FFFFFF</color>
+    <color name="text_dim">#A6A9B4</color>
+    <color name="overlay">#D90E0F13</color>
+</resources>
