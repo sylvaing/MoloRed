@@ -3,6 +3,13 @@
 Personal-use Android TV / Fire TV client for the live channels included in a
 RED by SFR (or SFR) TV subscription, with a remote-friendly UI.
 
+| Channel grid | Channel strip (Down) | Control panel (Up) |
+|---|---|---|
+| ![Channel grid](docs/screenshots/grid.png) | ![Channel strip](docs/screenshots/channel-strip.png) | ![Control panel with time-shift bar](docs/screenshots/control-panel.png) |
+
+*Screenshots taken on a Fire TV Stick 4K Max. The video area is black because
+Widevine-protected content cannot be captured.*
+
 - Login **once** in the app's own screen (login + password). The credentials are
   submitted to SFR's official login form in an invisible WebView and, only if SFR
   accepts them, kept encrypted with an Android Keystore AES-GCM key. When the SFR

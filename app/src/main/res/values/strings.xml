@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Ma TV</string>
+    <string name="app_name">Molored - Ma TV</string>
     <string name="loading">Chargement des chaînes…</string>
     <string name="login_needed">Connexion à votre compte RED / SFR…</string>
     <string name="load_error">Impossible de charger les chaînes : %1$s\nAppuyez sur ☰ pour réessayer.</string>
