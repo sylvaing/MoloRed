@@ -94,9 +94,11 @@ class PlayerActivity : Activity() {
     private lateinit var pName: TextView
     private lateinit var pNext: TextView
     private lateinit var tsLiveBtn: TextView
+    private lateinit var tsTracksBtn: TextView
+    private var tracksApplied = false
     private lateinit var tsBarRow: View
-    /** Control panel focus: false = scrub bar, true = "back to live" button. */
-    private var panelFocusLive = false
+    /** Control panel focus: scrub bar, "audio / subtitles" button or "back to live" button. */
+    private var panelFocus = FOCUS_BAR
     private val window = Timeline.Window()
     /** null = live manifest (start=LIVE); else wall-clock start of the start-over manifest. */
     private var streamStartMs: Long? = null
@@ -136,6 +138,7 @@ class PlayerActivity : Activity() {
         pName = findViewById(R.id.p_name)
         pNext = findViewById(R.id.p_next)
         tsLiveBtn = findViewById(R.id.ts_live_btn)
+        tsTracksBtn = findViewById(R.id.ts_tracks_btn)
         tsBarRow = findViewById(R.id.ts_bar_row)
 
         strip = findViewById(R.id.strip)
@@ -273,6 +276,7 @@ class PlayerActivity : Activity() {
                     )
                     .build()
             )
+        tracksApplied = false
         val p = ExoPlayer.Builder(this).build()
         p.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
@@ -308,6 +312,19 @@ class PlayerActivity : Activity() {
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) = updateTs()
+
+            override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
+                if (!tracksApplied && !tracks.isEmpty) {
+                    tracksApplied = true
+                    TrackPrefs.apply(this@PlayerActivity, p)
+                    tracks.groups.filter { it.type != C.TRACK_TYPE_VIDEO }.forEach { g ->
+                        val f = g.getTrackFormat(0)
+                        Log.i(TAG, "track type=${g.type} lang=${f.language} roles=${f.roleFlags} sel=${g.isSelected}")
+                    }
+                }
+                if (tsOverlay.visibility == View.VISIBLE) updateTs()
+                Log.i(TAG, "selected audio=${TrackPrefs.selectedAudioKey(tracks)} text=${TrackPrefs.selectedTextKey(tracks)}")
+            }
         })
         playerView.player = p
         if (startPositionMs != null) p.setMediaSource(source, startPositionMs) else p.setMediaSource(source)
@@ -428,7 +445,7 @@ class PlayerActivity : Activity() {
 
     /** Opens (or refreshes) the control panel; focus starts on the scrub bar. */
     private fun showTs() {
-        if (tsOverlay.visibility != View.VISIBLE) panelFocusLive = false
+        if (tsOverlay.visibility != View.VISIBLE) panelFocus = FOCUS_BAR
         banner.visibility = View.GONE
         hideBanner.run()
         tsOverlay.visibility = View.VISIBLE
@@ -445,24 +462,30 @@ class PlayerActivity : Activity() {
         val down = event.action == KeyEvent.ACTION_DOWN
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                if (down && !panelFocusLive) {
-                    val step = (30_000L * (1 + event.repeatCount / 3)).coerceAtMost(5 * 60_000L)
-                    seekBy(if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -step else step)
+                val left = event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+                if (down) when (panelFocus) {
+                    FOCUS_BAR -> {
+                        val step = (30_000L * (1 + event.repeatCount / 3)).coerceAtMost(5 * 60_000L)
+                        seekBy(if (left) -step else step)
+                    }
+                    FOCUS_TRACKS -> if (!left && isDelayed()) { panelFocus = FOCUS_LIVE; updateTs() }
+                    FOCUS_LIVE -> if (left) { panelFocus = FOCUS_TRACKS; updateTs() }
                 }
                 armTsTimer(); return true
             }
             KeyEvent.KEYCODE_DPAD_UP -> {
-                if (down && isDelayed()) { panelFocusLive = true; updateTs() }
+                if (down && panelFocus == FOCUS_BAR) { panelFocus = if (isDelayed()) FOCUS_LIVE else FOCUS_TRACKS; updateTs() }
                 armTsTimer(); return true
             }
             KeyEvent.KEYCODE_DPAD_DOWN -> {
-                if (down) { if (panelFocusLive) { panelFocusLive = false; updateTs() } else hideTs() }
+                if (down) { if (panelFocus != FOCUS_BAR) { panelFocus = FOCUS_BAR; updateTs() } else hideTs() }
                 return true
             }
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
                 if (down && event.repeatCount == 0) {
                     when {
-                        panelFocusLive -> { panelFocusLive = false; goLive() }
+                        panelFocus == FOCUS_LIVE -> { panelFocus = FOCUS_BAR; goLive() }
+                        panelFocus == FOCUS_TRACKS -> showTracksDialog()
                         pendingSeekWall != null -> { ui.removeCallbacks(commitSeek); commitSeek.run() }
                         else -> togglePause()
                     }
@@ -509,9 +532,11 @@ class PlayerActivity : Activity() {
         val next = prog?.let { Repo.programAt(ch, it.end + 1) }
         pNext.text = next?.let { getString(R.string.next, Repo.time(it.start), it.title) } ?: ""
         tsLiveBtn.alpha = if (delayed) 1f else 0.35f
-        if (!delayed) panelFocusLive = false
-        tsLiveBtn.setBackgroundResource(if (panelFocusLive) R.drawable.live_btn_focus_bg else R.drawable.live_btn_bg)
-        if (panelFocusLive) tsBarRow.background = null else tsBarRow.setBackgroundResource(R.drawable.focus_row_bg)
+        if (!delayed && panelFocus == FOCUS_LIVE) panelFocus = FOCUS_TRACKS
+        tsLiveBtn.setBackgroundResource(if (panelFocus == FOCUS_LIVE) R.drawable.live_btn_focus_bg else R.drawable.live_btn_bg)
+        tsTracksBtn.setBackgroundResource(if (panelFocus == FOCUS_TRACKS) R.drawable.live_btn_focus_bg else R.drawable.live_btn_bg)
+        tsTracksBtn.text = tracksSummary()
+        if (panelFocus != FOCUS_BAR) tsBarRow.background = null else tsBarRow.setBackgroundResource(R.drawable.focus_row_bg)
         val from = prog?.start ?: (windowStartWall() ?: pos - 15 * 60_000)
         val to = prog?.end ?: live
         val span = (to - from).coerceAtLeast(1)
@@ -549,11 +574,62 @@ class PlayerActivity : Activity() {
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 
+    /** Short label for the panel button, e.g. "VO · ST Français". */
+    private fun tracksSummary(): String {
+        val t = player?.currentTracks ?: return getString(R.string.tracks_button)
+        val a = TrackPrefs.selectedAudioKey(t)
+        val audio = when {
+            a == null -> null
+            a == "vo" -> "VO"
+            a == "ad" -> "AD"
+            a == "lang:fra" -> "VF"
+            else -> TrackPrefs.audioOptions(t).firstOrNull { it.key == a }?.label
+        }
+        val txt = TrackPrefs.selectedTextKey(t)
+        val st = if (txt == TrackPrefs.TEXT_OFF) null else if (txt.endsWith("-sme")) "ST SME" else "ST"
+        return "\uD83D\uDCAC  " + listOfNotNull(audio, st).joinToString(" · ").ifEmpty { getString(R.string.tracks_button) }
+    }
+
+    /** Audio / subtitles chooser; the choice is remembered for every channel. */
+    private fun showTracksDialog() {
+        val p = player ?: return
+        val t = p.currentTracks
+        val audio = TrackPrefs.audioOptions(t)
+        val text = TrackPrefs.textOptions(t)
+        val curA = TrackPrefs.selectedAudioKey(t)
+        val curT = TrackPrefs.selectedTextKey(t)
+        val items = arrayOf(
+            getString(R.string.tracks_audio, audio.firstOrNull { it.key == curA }?.label ?: "—"),
+            getString(R.string.tracks_text, text.firstOrNull { it.key == curT }?.label ?: "—"),
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.menu_tracks)
+            .setItems(items) { _, which ->
+                if (which == 0) choose(getString(R.string.tracks_audio_title), audio, curA) { k ->
+                    TrackPrefs.setAudioPref(this, k); TrackPrefs.apply(this, p); updateTs()
+                } else choose(getString(R.string.tracks_text_title), text, curT) { k ->
+                    TrackPrefs.setTextPref(this, k); TrackPrefs.apply(this, p); updateTs()
+                }
+            }
+            .show()
+    }
+
+    private fun choose(title: String, opts: List<TrackPrefs.Option>, current: String?, onPick: (String) -> Unit) {
+        if (opts.isEmpty()) { toast(getString(R.string.tracks_none)); return }
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setSingleChoiceItems(opts.map { it.label }.toTypedArray(), opts.indexOfFirst { it.key == current }) { d, i ->
+                onPick(opts[i].key); d.dismiss()
+            }
+            .show()
+    }
+
     private fun showMenu() {
         val ch = Repo.channels[index]
         val items = ArrayList<Pair<String, () -> Unit>>()
         if (ch.startOver && Repo.programAt(ch, playheadWall() ?: System.currentTimeMillis()) != null)
             items += getString(R.string.menu_restart) to { restartProgramme() }
+        items += getString(R.string.menu_tracks) to { showTracksDialog() }
         if (isDelayed()) items += getString(R.string.menu_live) to { goLive() }
         items += getString(R.string.menu_grid) to { finish() }
         AlertDialog.Builder(this)
@@ -695,6 +771,9 @@ class PlayerActivity : Activity() {
     companion object {
         const val EXTRA_INDEX = "index"
         private const val TAG = "MaTV"
+        private const val FOCUS_BAR = 0
+        private const val FOCUS_TRACKS = 1
+        private const val FOCUS_LIVE = 2
         /** Start-over depth offered by SFR's restart API. */
         private const val MAX_BACK_MS = 8 * 3600_000L - 5 * 60_000L
     }

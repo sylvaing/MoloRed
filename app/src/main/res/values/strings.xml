@@ -18,12 +18,19 @@
     <string name="login_empty">Saisissez l’identifiant et le mot de passe.</string>
     <string name="ts_live">DIRECT</string>
     <string name="ts_delay">−%1$s</string>
-    <string name="ts_hint_live">◀ reculer   ·   OK pause</string>
-    <string name="ts_hint_delayed">◀ ▶ se déplacer   ·   OK pause / lecture   ·   ▲ direct</string>
-    <string name="ts_hint_noff">◀ reculer (avance interdite sur cette chaîne)   ·   ▲ direct</string>
+    <string name="ts_hint_live">◀ reculer   ·   OK pause   ·   ▲ audio / sous-titres</string>
+    <string name="ts_hint_delayed">◀ ▶ se déplacer   ·   OK pause / lecture   ·   ▲ direct, audio / sous-titres</string>
+    <string name="ts_hint_noff">◀ reculer (avance interdite sur cette chaîne)   ·   ▲ direct, audio / sous-titres</string>
     <string name="ts_not_allowed">Pause et retour en arrière non disponibles sur cette chaîne</string>
     <string name="menu_restart">Reprendre au début du programme</string>
     <string name="menu_live">Revenir au direct</string>
     <string name="menu_grid">Liste des chaînes</string>
     <string name="ts_live_button">⏭  Revenir au direct</string>
+    <string name="tracks_button">Audio / Sous-titres</string>
+    <string name="menu_tracks">Audio et sous-titres</string>
+    <string name="tracks_audio">Audio : %1$s</string>
+    <string name="tracks_text">Sous-titres : %1$s</string>
+    <string name="tracks_audio_title">Piste audio</string>
+    <string name="tracks_text_title">Sous-titres</string>
+    <string name="tracks_none">Aucune piste disponible sur cette chaîne</string>
 </resources>

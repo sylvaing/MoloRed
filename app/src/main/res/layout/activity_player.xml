@@ -54,6 +54,11 @@
                     android:layout_height="wrap_content" android:textColor="@color/text_dim"
                     android:textSize="17sp" android:maxLines="1" android:ellipsize="end"/>
             </LinearLayout>
+            <TextView android:id="@+id/ts_tracks_btn" android:layout_width="wrap_content"
+                android:layout_height="52dp" android:gravity="center" android:layout_marginEnd="14dp"
+                android:paddingStart="20dp" android:paddingEnd="20dp"
+                android:text="@string/tracks_button" android:textColor="@color/text"
+                android:textSize="18sp" android:textStyle="bold"/>
             <TextView android:id="@+id/ts_live_btn" android:layout_width="wrap_content"
                 android:layout_height="52dp" android:gravity="center"
                 android:paddingStart="22dp" android:paddingEnd="22dp"

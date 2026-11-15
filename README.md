@@ -36,6 +36,10 @@ Widevine-protected content cannot be captured.*
   - Play/Pause: pause (stays paused, like a recorder); Rewind / Fast-forward:
     ±30 s per press, bigger steps when held; time-shift bar with the programme,
     playhead vs live edge, "−12 min" / DIRECT badge
+  - Audio / subtitles: button in the control panel (Up, then Up again) or
+    Menu (☰): French, original version (VO), audio description, other languages
+    (e.g. German on Arte); subtitles in French or French for the deaf and hard of
+    hearing. The choice is remembered and applied to every channel that offers it.
   - Menu (☰): restart the programme from the beginning, back to live, channel list
   - Back: back to live when delayed, else channel grid; Menu (☰) in the grid to reload or log out.
 - Time-shift: the live manifest keeps ~15 min; further back (up to 8 h) or
