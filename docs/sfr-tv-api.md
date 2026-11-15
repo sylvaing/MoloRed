@@ -71,7 +71,9 @@ Values are joined with `&` without URL encoding (`toCustomParams`).
 `POST https://ws-backendtv.sfr.fr/asgard-session/public/v2/connect` then
 `/verifyAccess` every `ttlChannel` with
 `{app, device, token, idAsc, idChannel, idDevice, nameDevice}`; `idAsc` comes
-from `heimdall-core/public/api/v3/userProfiles`. Not implemented in v1.
+from `heimdall-core/public/api/v3/userProfiles`. A 403 lists the devices already
+watching. Not implemented: on 2026-11-15 none of the ~450 services of
+`service-list` had `isLimited: true`.
 
 ## 5b. Time-shift / start-over
 

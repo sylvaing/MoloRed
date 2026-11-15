@@ -71,7 +71,8 @@ Accept the "Allow USB debugging" prompt on the TV the first time.
 
 ## Limits (v1)
 
-- Channels flagged `isLimited` by SFR (concurrent-stream control, e.g. some
-  sports channels) need the asgard session handshake, not implemented yet.
+- SFR's concurrent-stream control (asgard session, used by the web player for
+  channels flagged `isLimited`) is not implemented. As of 2026-11-15 no channel
+  in SFR's list carries that flag, so every channel of the subscription plays.
 - Replay / VOD not implemented: live TV only.
 - Unofficial client: SFR may change its web API at any time.
