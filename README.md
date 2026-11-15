@@ -3,6 +3,13 @@
 Personal-use Android TV / Fire TV client for the live channels included in a
 RED by SFR (or SFR) TV subscription, with a remote-friendly UI.
 
+> **Unofficial project.** MoloRed is a personal, non-commercial project. It is
+> not affiliated with, endorsed or supported by SFR, RED by SFR or Molotov. All
+> trademarks and channel logos belong to their respective owners. A valid
+> RED by SFR / SFR TV subscription is required: the app only plays what your own
+> account is entitled to, through SFR's own servers, and does not circumvent any
+> DRM. SFR may change its API at any time and break the app.
+
 | Channel grid | Channel strip (Down) | Control panel (Up) |
 |---|---|---|
 | ![Channel grid](docs/screenshots/grid.png) | ![Channel strip](docs/screenshots/channel-strip.png) | ![Control panel with time-shift bar](docs/screenshots/control-panel.png) |
