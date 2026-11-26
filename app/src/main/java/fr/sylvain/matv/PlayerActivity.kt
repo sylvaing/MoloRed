@@ -70,6 +70,10 @@ class PlayerActivity : Activity() {
     private var retries = 0
     private var digits = ""
     private var zapAt = 0L
+    /** True between onStart and onStop: playback may only be created while visible. */
+    private var started = false
+    /** Was playing when the screen was paused (e.g. Alexa overlay): resume on return. */
+    private var resumeOnReturn = false
 
     // Channel strip (Down to open, Left/Right to browse, OK to watch)
     private lateinit var strip: View
@@ -173,28 +177,46 @@ class PlayerActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
+        started = true
         ui.post(tick)
         if (Repo.channels.isEmpty()) return
         val resumeAt = lastWall
         if (streamStartMs != null && resumeAt != null) load(streamStartMs, resumeAt, 0) else play(index)
     }
 
+    override fun onPause() {
+        // Cut the sound as soon as the screen is left (Home, another app), before onStop.
+        player?.let { resumeOnReturn = it.playWhenReady; it.volume = 0f; it.playWhenReady = false }
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        player?.let { it.volume = 1f; if (resumeOnReturn) it.playWhenReady = true }
+    }
+
     override fun onStop() {
+        started = false
         lastWall = playheadWall() ?: lastWall
-        ui.removeCallbacks(tick)
+        // Drop every deferred action (seek, digits, overlays…): none may start playback in the background.
+        ui.removeCallbacksAndMessages(null)
+        pendingSeekWall = null
+        seekDirection = 0
         playJob?.cancel()
         releasePlayer()
         super.onStop()
     }
 
     override fun onDestroy() {
+        started = false
         scope.cancel()
         ui.removeCallbacksAndMessages(null)
+        releasePlayer()
         super.onDestroy()
     }
 
     private fun releasePlayer() {
-        player?.release()
+        player?.let { releaseQuietly(it) }
         player = null
         drmCallback = null
     }
@@ -220,6 +242,7 @@ class PlayerActivity : Activity() {
      * manifest beginning at [startMs], positioned at [seekWall] (wall clock).
      */
     private fun load(startMs: Long?, seekWall: Long?, debounceMs: Long) {
+        if (!started) return
         val ch = Repo.channels[index]
         streamStartMs = startMs
         Log.i(TAG, "load #${ch.number} ${ch.name} start=${startMs?.let { Repo.time(it) } ?: "LIVE"} seek=${seekWall?.let { Repo.time(it) }}")
@@ -250,34 +273,19 @@ class PlayerActivity : Activity() {
         }
     }
 
-    private fun startPlayback(url: String, customData: String, startPositionMs: Long?) {
-        releasePlayer()
-        val http = DefaultHttpDataSource.Factory()
-            .setUserAgent(Sfr.USER_AGENT)
-            .setDefaultRequestProperties(Sfr.COMMON_HEADERS)
-            .setAllowCrossProtocolRedirects(true)
-        val cb = HttpMediaDrmCallback(Sfr.LICENSE_URL, http).apply {
-            setKeyRequestProperty("customdata", customData)
-        }
-        drmCallback = cb
-        val drm = DefaultDrmSessionManager.Builder()
-            .setUuidAndExoMediaDrmProvider(C.WIDEVINE_UUID, FrameworkMediaDrm.DEFAULT_PROVIDER)
-            .setMultiSession(false)
-            .build(cb)
-        val source = DashMediaSource.Factory(http)
-            .setDrmSessionManagerProvider { drm }
-            .createMediaSource(
-                MediaItem.Builder()
-                    .setUri(url)
-                    .setDrmConfiguration(MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID).build())
-                    // No speed tricks to chase the live edge: TV sound must stay natural.
-                    .setLiveConfiguration(
-                        MediaItem.LiveConfiguration.Builder().setMinPlaybackSpeed(1f).setMaxPlaybackSpeed(1f).build()
-                    )
-                    .build()
-            )
-        tracksApplied = false
-        val p = ExoPlayer.Builder(this).build()
+    /**
+     * The single player of this screen, created once and reused for every channel:
+     * zapping only swaps the media source, so the (unique) secure video decoder of the
+     * Fire TV is never torn down and re-created in a hurry, and the UI thread never
+     * blocks on a player release while zapping.
+     */
+    private fun ensurePlayer(): ExoPlayer {
+        player?.let { return it }
+        releaseAllPlayers() // one player per app, even if an old screen leaked one
+        val p = ExoPlayer.Builder(this)
+            .setReleaseTimeoutMs(1_500)
+            .build()
+        activePlayers += p
         p.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 var c: Throwable? = error
@@ -327,10 +335,42 @@ class PlayerActivity : Activity() {
             }
         })
         playerView.player = p
-        if (startPositionMs != null) p.setMediaSource(source, startPositionMs) else p.setMediaSource(source)
+        player = p
+        return p
+    }
+
+    private fun startPlayback(url: String, customData: String, startPositionMs: Long?) {
+        if (!started || isFinishing) { Log.w(TAG, "startPlayback ignored: activity not visible"); return }
+        val http = DefaultHttpDataSource.Factory()
+            .setUserAgent(Sfr.USER_AGENT)
+            .setDefaultRequestProperties(Sfr.COMMON_HEADERS)
+            .setAllowCrossProtocolRedirects(true)
+        val cb = HttpMediaDrmCallback(Sfr.LICENSE_URL, http).apply {
+            setKeyRequestProperty("customdata", customData)
+        }
+        drmCallback = cb
+        val drm = DefaultDrmSessionManager.Builder()
+            .setUuidAndExoMediaDrmProvider(C.WIDEVINE_UUID, FrameworkMediaDrm.DEFAULT_PROVIDER)
+            .setMultiSession(false)
+            .build(cb)
+        val source = DashMediaSource.Factory(http)
+            .setDrmSessionManagerProvider { drm }
+            .createMediaSource(
+                MediaItem.Builder()
+                    .setUri(url)
+                    .setDrmConfiguration(MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID).build())
+                    // No speed tricks to chase the live edge: TV sound must stay natural.
+                    .setLiveConfiguration(
+                        MediaItem.LiveConfiguration.Builder().setMinPlaybackSpeed(1f).setMaxPlaybackSpeed(1f).build()
+                    )
+                    .build()
+            )
+        tracksApplied = false
+        val p = ensurePlayer()
+        p.volume = 1f
+        if (startPositionMs != null) p.setMediaSource(source, startPositionMs) else p.setMediaSource(source, true)
         p.playWhenReady = true
         p.prepare()
-        player = p
     }
 
     // ------------------------------------------------------------------ time-shift
@@ -770,6 +810,20 @@ class PlayerActivity : Activity() {
 
     companion object {
         const val EXTRA_INDEX = "index"
+
+        /** Every player created by the app, so that none can survive its screen. */
+        private val activePlayers = mutableSetOf<ExoPlayer>()
+
+        private fun releaseQuietly(p: ExoPlayer) {
+            runCatching { p.volume = 0f; p.playWhenReady = false; p.stop() }
+            runCatching { p.release() }
+            activePlayers -= p
+        }
+
+        private fun releaseAllPlayers() {
+            if (activePlayers.isNotEmpty()) Log.w("MaTV", "releasing ${activePlayers.size} leftover player(s)")
+            activePlayers.toList().forEach { releaseQuietly(it) }
+        }
         private const val TAG = "MaTV"
         private const val FOCUS_BAR = 0
         private const val FOCUS_TRACKS = 1
