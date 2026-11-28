@@ -92,6 +92,55 @@ watching. Not implemented: on 2026-11-15 none of the ~450 services of
 → `{"epg": {"<epgId>": [{title, genre, startDate, endDate (ms), images[]…}]}}`
 (~10 MB per day).
 
+## 7. Replay catalogue (explored 2026-11-26, not implemented)
+
+Base `https://ws-cdn.tv.sfr.net/gaia-core/rest/api/web/`, common query
+`app=gen8&device=browser&accountTypes=LAND&infrastructures=FTTH&operators=RED&noTracking=false`.
+Everything on `ws-cdn` is public (no token).
+
+| Step | Call |
+|---|---|
+| Stores (80 channels: TF1, France TV, M6, Arte, …) | `v2/spot/RefSpot::8e6b5dbd-5478-4f23-a8d0-97ded966cd9a/content` → `tiles[].action.actionIds.storeId` (spot id from `v2/menu/RefMenuItem::gen8-replay-v2/structure`) |
+| Categories of a store | `v1/stores/<Store::NEUF_TF1>/categories` → `categories[] {id, name}`, `type: REPLAY` |
+| Programmes of a category | `v2/categories/<Category::…>/contents?page=0&size=20` → products of `type` `Season` / `Serie` / `Movie` |
+| Programme detail | `v1/content/<Product::…>/detail?universe=PROVIDER` |
+| Episodes | `v1/content/<Product::…>/episodes?universe=PROVIDER&page=0&size=10&sortBy=DIFFUSIONDATE&sorting=DESC` → `{count, content[] {id, title, duration (s), diffusionDate, images}}` |
+| Streams (needs token) | `GET ws-backendtv.sfr.fr/gaia-core/rest/api/web/v3/content/<Product::…>/options?…&token=<castoken>&universe=PROVIDER&selectedCustomerId=<siebelId>` → `[].offers[] {offerId, definition HD/SD, startDate, endDate, streams[] {drm, format, url}}` |
+
+Playback:
+
+- Stream with `drm=WIDEVINE, format=dash`:
+  `https://replay-cdn-cbv.tv.sfr.net/replay/<x>/<uuid>/manifest.mpd` — static DASH,
+  H.264 360p→720p (365 k → 4.5 Mb/s), AAC, thumbnail track, cenc Widevine + PlayReady.
+  The bare URL answered 200 on 2026-11-26; the web player still signs it with
+  `mkpc/jwt` (`{url, issuer: "sfrtv_web", eme}`) like live.
+- Licence: same endpoint and `customdata` as live, with `type=REPLAY` (`VOD` for
+  the other contexts) and no `accountId`; the web client makes no entitlement call for
+  `context=replay`. Read from the web bundle, **not yet verified on a device**: the web
+  player stalled before the licence request in the automated Chrome session.
+- Other user endpoints seen (token): `v1/profile/<profileId>/continue-watching`,
+  `v2/profile/<profileId>/favorites`.
+
+## 8. VOD / SVOD catalogue (explored 2026-11-26, not implemented)
+
+Same public `ws-cdn` gaia-core API as replay; only the store type and product
+`context` differ.
+
+- `v1/stores/vod` → rent/buy stores (`context=tvod`): `Store::CanalTvodStore`
+  (CANAL VOD), `Store::ArteFTTBStore` (Arte VOD), `Store::UniversCineFTTBStore` (Sooner Vod).
+- `v1/stores/svod` → subscription passes (`context=svod`): `Store::FilmoSvodFTTBStore`
+  (Sooner), `Store::GulliMaxStore`, `Store::AdultSwimStore`. Without the pass the web
+  page only offers a "souscrire" button.
+- `v1/stores/replay` → the replay stores of section 7.
+- VOD home page: `v2/menu/RefMenuItem::gen8-vod-v2/structure` → `spots[]`, then
+  `v2/spot/<id>/content` → `tiles[]` with `action.actionType=displayFip` and
+  `actionIds.contentId` (numeric group id or `Product::…`).
+- Prices and streams are in `v3/content/<id>/options` (token required; `[]` without).
+- Every TVOD playback needs an order first, even "bonus offert" items: the web shows
+  a "Louer en HD pour 48h — Total 0€ — Confirmer & payer" dialog billed on the
+  fixed line. The licence then carries the `entitlementId` returned by the
+  `checkForPlay` call (`type=VOD`). Ordering is deliberately out of scope for the app.
+
 ## Errors seen
 
 - `S-6001` playback error in a browser without a Widevine CDM.
